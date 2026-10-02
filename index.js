@@ -5,11 +5,14 @@ import { Server } from "socket.io";
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
+ const io = new Server(server, {
   cors: {
-    origin: "*", // Live aur local dono ke liye allow kar diya hai
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true,
   },
+  maxHttpBufferSize: 10 * 1024 * 1024,
+});
   maxHttpBufferSize: 10 * 1024 * 1024, // Multimedia (images/audio/video) ke liye buffer limit increase ki hai
 });
 
