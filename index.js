@@ -6,10 +6,11 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "*", // Live aur local dono ke liye allow kar diya hai
     methods: ["GET", "POST"],
     credentials: true,
   },
+  maxHttpBufferSize: 10 * 1024 * 1024, // Multimedia (images/audio/video) ke liye buffer limit increase ki hai
 });
 
 app.get("/", (req, res) => {
@@ -26,25 +27,40 @@ io.on("connection", (socket) => {
     socket.join(cleanRoom);
     console.log(`${username} joined room ${cleanRoom}`);
 
-    // notify everyone in the room (including the joiner) that someone joined
     io.to(cleanRoom).emit("system", { text: `${username} joined the chat` });
   });
 
   socket.on("leave", (roomId) => {
+    if (!roomId) return;
     const cleanRoom = roomId.trim().toLowerCase();
-    io.to(cleanRoom).emit("system", { text: `${socket.data.username} left the chat` });
+    if (socket.data.username) {
+      io.to(cleanRoom).emit("system", { text: `${socket.data.username} left the chat` });
+    }
     socket.leave(cleanRoom);
   });
 
+  // Message send with multimedia & status support
   socket.on("send", (message) => {
     const room = message.room.trim().toLowerCase();
-    console.log({ ...message, room });
-    io.to(room).emit("message", { ...message, room });
+    const messageWithId = {
+      ...message,
+      id: message.id || Date.now() + Math.random(),
+      room,
+      status: "delivered", // Jaise hi server pe aaye, delivered mark ho jaye ga
+    };
+    console.log("New message:", messageWithId);
+    io.to(room).emit("message", messageWithId);
+  });
+
+  // Message seen status update event
+  socket.on("mark_seen", ({ room, messageId }) => {
+    const cleanRoom = room.trim().toLowerCase();
+    io.to(cleanRoom).emit("message_seen", { messageId });
   });
 
   socket.on("disconnect", () => {
     console.log("user disconnected", socket.id);
-    if (socket.data.room) {
+    if (socket.data.room && socket.data.username) {
       io.to(socket.data.room).emit("system", {
         text: `${socket.data.username} left the chat`,
       });
@@ -52,6 +68,7 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(5050, () => {
-  console.log(`Server is running on port 5050`);
+const PORT = process.env.PORT || 5050;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
