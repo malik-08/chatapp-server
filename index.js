@@ -5,14 +5,11 @@ import { Server } from "socket.io";
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
- const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*", // Live aur local dono ke liye allow kar diya hai
     methods: ["GET", "POST"],
     credentials: true,
   },
-  maxHttpBufferSize: 10 * 1024 * 1024,
-});
   maxHttpBufferSize: 10 * 1024 * 1024, // Multimedia (images/audio/video) ke liye buffer limit increase ki hai
 });
 
@@ -72,6 +69,10 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 5050;
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+
+// Yeh sirf local computer par chalega, Vercel par nahi
+if (process.env.NODE_ENV !== "production") {
+  server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
